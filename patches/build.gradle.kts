@@ -1,14 +1,13 @@
-group = "app.template"
+group = "app.ciraolone"
 
 patches {
-    // TODO: Update this section with your project details.
     about {
-        name = "UserXYZ Patches"
-        description = "Patches for apps I like"
-        source = "git@github.com:UserXYZ/morphe-patches.git"
-        author = "Awesome dev"
+        name = "Watch Later Patches"
+        description = "Pulsante Guarda piu tardi nella barra di navigazione di YouTube"
+        source = "git@github.com:ciraolone/morphe-watch-later.git"
+        author = "ciraolone"
         contact = "na"
-        website = "na"
+        website = "https://github.com/ciraolone/morphe-watch-later"
         license = "GPLv3"
     }
 }
