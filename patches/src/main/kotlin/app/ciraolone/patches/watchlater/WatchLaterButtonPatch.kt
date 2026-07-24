@@ -1,26 +1,35 @@
 /*
- * La patch vera e propria: aggiunge una voce "Guarda piu' tardi" alla barra di navigazione di YouTube.
- * Funziona in due iniezioni. Nella prima intercetta la costruzione di ogni voce della barra e, quando
- * riconosce quella Home, chiede all'estensione di sfornarne una copia modificata (icona, etichetta e
- * destinazione verso la playlist WL): la copia viene ricostruita come oggetto YouTube e messa da parte.
- * Nella seconda intercetta il montaggio della lista delle voci e ci infila quella messa da parte.
- * A differenza del pulsante Cerca ufficiale non serve agganciare nulla al tap: la destinazione viaggia
- * come dato dentro la voce stessa (browseId VLWL), quindi e' YouTube a navigare da sola.
- * Il blocco smali e la gestione dei registri sono ricopiati da NavigationBarPatch di morphe-patches:
- * l'ordine delle istruzioni e il backup del registro non sono arbitrari, non riordinarli.
+ * La patch vera e propria: aggiunge una voce "Later" alla barra di navigazione di YouTube.
+ * Lavora in tre iniezioni. (1) Intercetta la costruzione di ogni voce della barra e, riconosciuta
+ * quella Home, chiede all'estensione una copia modificata (icona, etichetta, identificatore proprio),
+ * la ricostruisce come oggetto YouTube e la mette da parte. (2) Intercetta il montaggio della lista
+ * delle voci e ci infila la nostra, prima del profilo. (3) Intercetta la creazione della VISTA di ogni
+ * tab: a vista pronta l'estensione riconosce la nostra dall'etichetta "Later" e le attacca il click
+ * (apre la playlist Guarda piu' tardi) e la nostra icona-orologio — perche' i tab della barra non
+ * navigano leggendo un campo "destinazione", il comportamento va agganciato alla vista.
+ * Il disegno dell'orologio viene copiato nell'app come risorsa drawable.
+ * Il blocco smali e la gestione dei registri della prima iniezione sono ricopiati da NavigationBarPatch
+ * di morphe-patches: l'ordine e il backup del registro non sono arbitrari, non riordinarli.
  */
 
 package app.ciraolone.patches.watchlater
 
 import app.ciraolone.patches.shared.Constants.COMPATIBILITY_YOUTUBE
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.resourcePatch
+import app.morphe.util.ResourceGroup
 import app.morphe.util.addInstructionsAtControlFlowLabel
+import app.morphe.util.copyResources
+import app.morphe.util.findInstructionIndicesReversedOrThrow
 import app.morphe.util.getFreeRegisterProvider
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
@@ -34,13 +43,23 @@ private const val EXTENSION_CLASS =
 @Suppress("unused")
 val watchLaterButtonPatch = bytecodePatch(
     name = "Watch later button",
-    description = "Aggiunge un pulsante 'Guarda piu tardi' alla barra di navigazione in basso, "
-            + "che apre direttamente la playlist Guarda piu tardi.",
+    description = "Aggiunge un pulsante 'Later' alla barra di navigazione in basso, "
+            + "che apre la playlist Guarda piu tardi.",
     default = true
 ) {
     compatibleWith(COMPATIBILITY_YOUTUBE)
 
-    dependsOn(protoLibraryFixPatch)
+    dependsOn(
+        protoLibraryFixPatch,
+        resourcePatch {
+            execute {
+                copyResources(
+                    "watchlaterbutton",
+                    ResourceGroup("drawable", "morphe_watch_later.xml")
+                )
+            }
+        }
+    )
 
     extendWith("extensions/extension.mpe")
 
@@ -119,6 +138,18 @@ val watchLaterButtonPatch = bytecodePatch(
                         invoke-static { v$insertRegister }, $protoListBuilderMethod
                         move-result-object v$insertRegister
                     """
+                )
+            }
+        }
+
+        // A ogni vista di tab appena creata passiamo la View all'estensione, che riconosce la nostra
+        // e le applica click e icona. Iniettiamo prima di ogni return-object (la View restituita).
+        PivotBarButtonsCreateDrawableViewFingerprint.method.apply {
+            findInstructionIndicesReversedOrThrow(Opcode.RETURN_OBJECT).forEach { index ->
+                val viewRegister = getInstruction<OneRegisterInstruction>(index).registerA
+                addInstruction(
+                    index,
+                    "invoke-static { v$viewRegister }, $EXTENSION_CLASS->onPivotViewCreated(Landroid/view/View;)V"
                 )
             }
         }

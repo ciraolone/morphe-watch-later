@@ -81,3 +81,15 @@ internal object ProtobufClassParseByteArrayFingerprint : Fingerprint(
     returnType = "L",
     parameters = listOf("L", "[B")
 )
+
+// Metodo di PivotBar che costruisce la vista di un singolo tab a partire da un Drawable.
+// E' il punto in cui, a vista appena creata, agganciamo il nostro click e sostituiamo l'icona.
+// Identico a quello usato da morphe-patches ufficiale: e' l'unica create-view che prende un Drawable.
+internal object PivotBarButtonsCreateDrawableViewFingerprint : Fingerprint(
+    definingClass = "Lcom/google/android/libraries/youtube/rendering/ui/pivotbar/PivotBar;",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "Landroid/view/View;",
+    custom = { method, _ ->
+        method.parameterTypes.firstOrNull() == "Landroid/graphics/drawable/Drawable;"
+    }
+)
