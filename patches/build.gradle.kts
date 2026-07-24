@@ -23,6 +23,10 @@ kotlin {
 val patchListGeneratorClasspath = configurations.create("patchListGeneratorClasspath")
 
 dependencies {
+    // Utilita' di authoring delle patch (app.morphe.util.*) usate da WatchLaterButtonPatch
+    // e ProtoLibraryFixPatch: registri liberi, inserimento smali, clonazione metodi.
+    implementation(libs.morphe.patches.library)
+
     compileOnly(libs.gson)
     patchListGeneratorClasspath(libs.gson)
 }
